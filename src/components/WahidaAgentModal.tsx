@@ -47,13 +47,12 @@ function WahidaAgentModal({ open, onClose }: WahidaAgentModalProps) {
       open={open}
       onClose={onClose}
       placement="right"
-      width={480}
       title={null}
       closeIcon={null}
       styles={{
         body: { padding: 0, background: '#0a0f1e', overflowY: 'auto' },
         mask: { backdropFilter: 'blur(4px)' },
-        wrapper: { boxShadow: '-8px 0 40px rgba(99,102,241,0.2)' },
+        wrapper: { width: 480, boxShadow: '-8px 0 40px rgba(99,102,241,0.2)' },
       }}
     >
       {/* Hero header */}

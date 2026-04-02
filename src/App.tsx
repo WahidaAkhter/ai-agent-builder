@@ -255,8 +255,11 @@ function App() {
           placement="left"
           open={mobileArmoryOpen}
           onClose={() => setMobileArmoryOpen(false)}
-          width={300}
-          styles={{ body: { padding: 0, background: '#0f172a' }, header: { background: '#0f172a', borderBottom: '1px solid #1e293b' } }}
+          styles={{
+            wrapper: { width: 300 },
+            body: { padding: 0, background: '#0f172a' },
+            header: { background: '#0f172a', borderBottom: '1px solid #1e293b' },
+          }}
         >
           {armoryContent}
         </Drawer>
@@ -266,8 +269,11 @@ function App() {
           placement="right"
           open={mobileConfigOpen}
           onClose={() => setMobileConfigOpen(false)}
-          width={300}
-          styles={{ body: { padding: 0, background: '#0f172a' }, header: { background: '#0f172a', borderBottom: '1px solid #1e293b' } }}
+          styles={{
+            wrapper: { width: 300 },
+            body: { padding: 0, background: '#0f172a' },
+            header: { background: '#0f172a', borderBottom: '1px solid #1e293b' },
+          }}
         >
           <AgentConfigPanel />
         </Drawer>

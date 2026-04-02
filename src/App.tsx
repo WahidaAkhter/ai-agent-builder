@@ -1,406 +1,293 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { ConfigProvider, theme, Layout, Button, Typography, Spin, Alert, Badge, Drawer } from 'antd'
+import {
+  DndContext, DragOverlay, PointerSensor, KeyboardSensor,
+  useSensor, useSensors,
+} from '@dnd-kit/core'
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import { ReloadOutlined, RobotOutlined, GithubOutlined, MenuOutlined, SettingOutlined } from '@ant-design/icons'
+import { motion, AnimatePresence } from 'framer-motion'
+import Sidebar from './components/Sidebar'
+import Canvas from './components/Canvas'
+import AgentConfigPanel from './components/AgentConfigPanel'
+import SavedAgentsPanel from './components/SavedAgentsPanel'
+import { useAgentStore } from './store/agentStore'
+import type { AgentData } from './store/agentStore'
+import DraggableItem from './components/DraggableItem'
 
-// Define the types based on data.json
-interface AgentProfile {
-  id: string
-  name: string
-  description: string
-}
-
-interface Skill {
-  id: string
-  name: string
-  category: string
-  description: string
-}
-
-interface Layer {
-  id: string
-  name: string
-  type: string
-  description: string
-}
-
-interface AgentData {
-  agentProfiles: AgentProfile[]
-  skills: Skill[]
-  layers: Layer[]
-}
-
-interface SavedAgent {
-  name: string
-  profileId: string
-  skillIds: string[]
-  layerIds: string[]
-  provider?: string
-}
+const { Header, Sider, Content } = Layout
+const { Text } = Typography
 
 function App() {
-  const [data, setData] = useState<AgentData | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Selection states
-  const [selectedProfile, setSelectedProfile] = useState<string>('')
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([])
-  const [selectedLayers, setSelectedLayers] = useState<string[]>([])
-
-  // Saving states
-  const [agentName, setAgentName] = useState('')
+  const setData = useAgentStore(s => s.setData)
+  const setLoading = useAgentStore(s => s.setLoading)
+  const setError = useAgentStore(s => s.setError)
+  const loading = useAgentStore(s => s.loading)
+  const error = useAgentStore(s => s.error)
+  const data = useAgentStore(s => s.data)
+  const addSkill = useAgentStore(s => s.addSkill)
+  const addLayer = useAgentStore(s => s.addLayer)
+  const reorderSkills = useAgentStore(s => s.reorderSkills)
+  const reorderLayers = useAgentStore(s => s.reorderLayers)
+  const selectedSkills = useAgentStore(s => s.selectedSkills)
+  const selectedLayers = useAgentStore(s => s.selectedLayers)
+  const initSavedAgents = useAgentStore(s => s.initSavedAgents)
+  const savedAgents = useAgentStore(s => s.savedAgents)
+  const agentName = useAgentStore(s => s.agentName)
   const agentNameRef = useRef(agentName)
-  const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([])
+  useEffect(() => { agentNameRef.current = agentName }, [agentName])
+
+  // Mobile drawer state
+  const [mobileArmoryOpen, setMobileArmoryOpen] = useState(false)
+  const [mobileConfigOpen, setMobileConfigOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
 
   useEffect(() => {
-    agentNameRef.current = agentName
-  }, [agentName])
-  const [selectedProvider, setSelectedProvider] = useState<string>('')
-
-  const handleDeleteAgent = (indexToRemove: number) => {
-    const updatedAgents = savedAgents.filter((_, index) => index !== indexToRemove)
-    setSavedAgents(updatedAgents)
-    localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
-  }
-
-  const [sessionTime, setSessionTime] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSessionTime(prev => prev + 1)
-    }, 1000)
-    return () => clearInterval(interval)
+    const handler = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
   }, [])
 
-  useEffect(() => {
-    // Load saved agents from local storage on component mount
-    const saved = localStorage.getItem('savedAgents')
-    if (saved) {
-      try {
-        setSavedAgents(JSON.parse(saved))
-      } catch (e) {
-        console.error('Failed to parse saved agents', e)
-      }
-    }
-  }, [])
+  const [activeDragData, setActiveDragData] = useState<{
+    id: string; name: string; description: string; badge: string; kind: 'skill' | 'layer'
+  } | null>(null)
 
-  useEffect(() => {
-    const analyticsInterval = setInterval(() => {
-      if (agentNameRef.current !== '') {
-        console.log(`[Analytics Heartbeat] User is working on agent named: "${agentNameRef.current}"`)
-      } else {
-        console.log(`[Analytics Heartbeat] User is working on an unnamed agent draft...`)
-      }
-    }, 8000)
-
-    return () => clearInterval(analyticsInterval)
-  }, [])
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const fetchAPI = async () => {
     setLoading(true)
     setError(null)
     try {
-      // Simulate network delay and randomness (1 to 3 seconds)
-      const delay = Math.floor(Math.random() * 2000) + 1000
-      await new Promise((resolve) => setTimeout(resolve, delay))
-
       const response = await fetch('/data.json')
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const jsonData: AgentData = await response.json()
       setData(jsonData)
-    } catch (err: any) {
-      console.error('Error fetching data:', err)
-      setError(err.message || 'Failed to fetch agent data')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch agent data'
+      setError(message)
     } finally {
       setLoading(false)
     }
   }
 
-  // Fetch data on initial component mount
   useEffect(() => {
     fetchAPI()
+    initSavedAgents()
   }, [])
 
-  const handleLayerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const layerId = e.target.value;
-    if (layerId && !selectedLayers.includes(layerId)) {
-      setSelectedLayers([...selectedLayers, layerId])
-    }
+  // Analytics heartbeat (stale-closure-free via ref)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log(`[Analytics] Working on: "${agentNameRef.current || 'unnamed draft'}"`)
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragData(event.active.data.current as typeof activeDragData)
   }
 
-  const handleSkillSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const skillId = e.target.value;
-    if (skillId && !selectedSkills.includes(skillId)) {
-      setSelectedSkills([...selectedSkills, skillId]);
-    }
-  }
+  const onDragEnd = (event: DragEndEvent) => {
+    const { over, active } = event
 
-  const handleSaveAgent = () => {
-    if (!agentName.trim()) {
-      alert('Please enter a name for your agent.')
+    if (!over) {
+      setActiveDragData(null)
       return
     }
 
-    const newAgent: SavedAgent = {
-      name: agentName,
-      profileId: selectedProfile,
-      skillIds: selectedSkills,
-      layerIds: selectedLayers,
-      provider: selectedProvider,
+    // Determine if this is a canvas-to-canvas reorder (useSortable sets sortable data)
+    const isReorder = !!active.data.current?.sortable
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    if (isReorder) {
+      // Reorder within skills list
+      if (selectedSkills.includes(activeId) && selectedSkills.includes(overId)) {
+        const oldIndex = selectedSkills.indexOf(activeId)
+        const newIndex = selectedSkills.indexOf(overId)
+        if (oldIndex !== newIndex) reorderSkills(oldIndex, newIndex)
+      }
+      // Reorder within layers list
+      else if (selectedLayers.includes(activeId) && selectedLayers.includes(overId)) {
+        const oldIndex = selectedLayers.indexOf(activeId)
+        const newIndex = selectedLayers.indexOf(overId)
+        if (oldIndex !== newIndex) reorderLayers(oldIndex, newIndex)
+      }
+    } else {
+      // Add from sidebar — accept drop on canvas zone OR on top of an existing module
+      const { id, kind } = active.data.current as { id: string; kind: 'skill' | 'layer' }
+      const isOverCanvas =
+        overId === 'canvas-drop-zone' ||
+        selectedSkills.includes(overId) ||
+        selectedLayers.includes(overId)
+      if (isOverCanvas) {
+        if (kind === 'skill') addSkill(id)
+        else if (kind === 'layer') addLayer(id)
+      }
     }
 
-    const updatedAgents = [...savedAgents, newAgent]
-    setSavedAgents(updatedAgents)
-    localStorage.setItem('savedAgents', JSON.stringify(updatedAgents))
-    setAgentName('')
-    alert(`Agent "${newAgent.name}" saved successfully!`)
+    setActiveDragData(null)
   }
 
-  const handleLoadAgent = (agent: SavedAgent) => {
-    setSelectedProfile(agent.profileId || '')
-    setSelectedSkills(agent.skillIds || [])
-    setSelectedLayers([...(agent.layerIds || [])])
-    setAgentName(agent.name)
-    setSelectedProvider(agent.provider || '')
-  }
+  const userAgentCount = savedAgents.filter(a => a.id !== 'wahida-lead-architect').length
+
+  const armoryContent = loading && !data ? (
+    <div className="sider-loading">
+      <Spin size="large" />
+      <Text style={{ color: '#64748b', marginTop: 12 }}>Loading modules...</Text>
+    </div>
+  ) : (
+    <Sidebar />
+  )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', padding: '1rem', fontFamily: 'sans-serif' }}>
-      <header style={{ marginBottom: '2rem' }}>
-        <h1>AI Agent Builder</h1>
-        <p>Design your custom AI personality and capability set.</p>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button onClick={fetchAPI} disabled={loading}>
-            {loading ? 'Fetching Configuration...' : 'Reload Configuration Data'}
-          </button>
-          <span style={{ fontSize: '0.9rem', color: '#666' }}>
-            Session Active: {sessionTime}s
-          </span>
-        </div>
-      </header>
+    <ConfigProvider
+      theme={{
+        algorithm: theme.darkAlgorithm,
+        token: {
+          colorPrimary: '#6366f1',
+          colorBgBase: '#0a0f1e',
+          colorBgContainer: '#0f172a',
+          colorBgElevated: '#1e293b',
+          colorBorder: '#1e293b',
+          borderRadius: 10,
+          fontFamily: "'Inter', system-ui, sans-serif",
+        },
+        components: {
+          Select: { optionSelectedBg: '#6366f122' },
+          Collapse: { headerBg: 'transparent', contentBg: 'transparent' },
+          Drawer: { colorBgElevated: '#0a0f1e' },
+        },
+      }}
+    >
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={onDragEnd}>
+        <Layout style={{ minHeight: '100vh', background: '#0a0f1e' }}>
 
-      <main style={{ display: 'flex', flexDirection: 'column', gap: '2rem', flex: 1 }}>
-        <div style={{ display: 'flex', gap: '2rem', flexDirection: 'row' }}>
-          {/* Left pane: Selections */}
-          <section style={{ flex: '1 1 50%', borderRight: '1px solid #ccc', paddingRight: '1rem' }}>
-            <h2>Configuration Options</h2>
-            {error && <div style={{ color: 'red', marginBottom: '1rem' }}>Error: {error}</div>}
-
-            {/* Show loading state explicitly */}
-            {loading && (
-              <div style={{ padding: '2rem', background: '#f0f8ff', border: '1px dashed #0066cc', marginBottom: '1rem' }}>
-                Fetching simulated API... (this takes 1-3 seconds to test loading states)
+          {/* ── HEADER ── */}
+          <Header className="app-header">
+            <div className="app-header-left">
+              {/* Mobile hamburger — Armory */}
+              {isMobile && (
+                <Button
+                  icon={<MenuOutlined />}
+                  onClick={() => setMobileArmoryOpen(true)}
+                  className="mobile-icon-btn"
+                />
+              )}
+              <div className="app-logo">
+                <RobotOutlined />
               </div>
-            )}
-
-            {!data && !loading && !error && <p>No data loaded.</p>}
-
-            {data && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div>
-                  <label htmlFor="profile-select" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Base Profile:</label>
-                  <select
-                    id="profile-select"
-                    value={selectedProfile}
-                    onChange={(e) => {
-                      setSelectedProfile(e.target.value)
-                    }}
-                    style={{ width: '100%', padding: '0.5rem' }}
-                  >
-                    <option value="">-- Select a Profile --</option>
-                    {data.agentProfiles.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="skill-select" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Add Skill:</label>
-                  <select
-                    id="skill-select"
-                    onChange={handleSkillSelect}
-                    value=""
-                    style={{ width: '100%', padding: '0.5rem' }}
-                  >
-                    <option value="" disabled>-- Select a Skill to Add --</option>
-                    {data.skills.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="layer-select" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>Add Personality Layer:</label>
-                  <select
-                    id="layer-select"
-                    onChange={handleLayerSelect}
-                    value=""
-                    style={{ width: '100%', padding: '0.5rem' }}
-                  >
-                    <option value="" disabled>-- Select a Layer to Add --</option>
-                    {data.layers.map((l) => (
-                      <option key={l.id} value={l.id}>{l.name} ({l.type})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label htmlFor="provider-select" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>AI Provider:</label>
-                  <select
-                    id="provider-select"
-                    value={selectedProvider}
-                    onChange={(e) => setSelectedProvider(e.target.value)}
-                    style={{ width: '100%', padding: '0.5rem' }}
-                  >
-                    <option value="">-- Select an AI Provider --</option>
-                    {['Gemini', 'ChatGPT', 'Kimi', 'Claude', 'DeepSeek'].map((provider) => (
-                      <option key={provider} value={provider}>{provider}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* Right pane: Selected configuration preview */}
-          <section style={{ flex: '1 1 50%', paddingLeft: '1rem' }}>
-            <h2>Current Agent Configuration</h2>
-
-            <div style={{ background: '#f5f5f5', padding: '1rem', borderRadius: '8px', minHeight: '300px' }}>
-              <h3 style={{ marginTop: 0 }}>Profile</h3>
-              {selectedProfile && data ? (
-                <p>
-                  <strong>{data.agentProfiles.find(p => p.id === selectedProfile)?.name}</strong>:
-                  {' '}{data.agentProfiles.find(p => p.id === selectedProfile)?.description}
-                </p>
-              ) : (
-                <p style={{ color: '#888' }}>No profile selected.</p>
-              )}
-
-              <h3>Selected Skills</h3>
-              {selectedSkills.length > 0 && data ? (
-                <ul style={{ paddingLeft: '1.5rem' }}>
-                  {selectedSkills.map(skillId => {
-                    const skill = data.skills.find(s => s.id === skillId);
-                    return (
-                      <li key={skillId} style={{ marginBottom: '0.5rem' }}>
-                        {skill?.name}
-                        <button
-                          onClick={() => setSelectedSkills(selectedSkills.filter(id => id !== skillId))}
-                          style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <p style={{ color: '#888' }}>No skills added.</p>
-              )}
-
-              <h3>Selected Layers</h3>
-              {selectedLayers.length > 0 && data ? (
-                <ul style={{ paddingLeft: '1.5rem' }}>
-                  {selectedLayers.map(layerId => {
-                    const layer = data.layers.find(l => l.id === layerId);
-                    return (
-                      <li key={layerId} style={{ marginBottom: '0.5rem' }}>
-                        {layer?.name}
-                        <button
-                          onClick={() => setSelectedLayers(selectedLayers.filter(id => id !== layerId))}
-                          style={{ marginLeft: '1rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <p style={{ color: '#888' }}>No layers added.</p>
-              )}
-
-              <h3>Selected Provider</h3>
-              {selectedProvider ? (
-                <p><strong>{selectedProvider}</strong></p>
-              ) : (
-                <p style={{ color: '#888' }}>No provider selected.</p>
-              )}
-
-              <div style={{ marginTop: '2rem', borderTop: '1px solid #ddd', paddingTop: '1rem' }}>
-                <h3 style={{ marginTop: 0 }}>Save This Agent</h3>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    type="text"
-                    placeholder="Enter agent name..."
-                    value={agentName}
-                    onChange={e => setAgentName(e.target.value)}
-                    style={{ flex: 1, padding: '0.5rem' }}
-                  />
-                  <button onClick={handleSaveAgent} style={{ padding: '0.5rem 1rem' }}>
-                    Save Agent
-                  </button>
-                </div>
+              <div>
+                <Text className="app-header-title">AI Agent Builder</Text>
+                {!isMobile && <Text className="app-header-sub">Design your custom AI personality</Text>}
               </div>
             </div>
-          </section>
-        </div>
-
-        {/* Bottom Panel: Saved Agents */}
-        {savedAgents.length > 0 && (
-          <section style={{ padding: '1.5rem', background: '#e0f7fa', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0 }}>Saved Agents</h2>
-              <button
-                onClick={() => {
-                  if (confirm('Are you sure you want to clear all saved agents?')) {
-                    setSavedAgents([])
-                    localStorage.removeItem('savedAgents')
-                  }
-                }}
-                style={{ padding: '0.5rem 1rem', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            <div className="app-header-right">
+              <AnimatePresence>
+                {error && (
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}>
+                    <Alert message={error} type="error" showIcon closable style={{ padding: '2px 12px', fontSize: 12 }} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {!isMobile && (
+                <Badge count={userAgentCount} color="#6366f1" offset={[-4, 4]}>
+                  <Text style={{ color: '#64748b', fontSize: 13 }}>Saved Agents</Text>
+                </Badge>
+              )}
+              <Button
+                icon={<ReloadOutlined spin={loading} />}
+                onClick={fetchAPI}
+                loading={loading}
+                className="reload-btn"
               >
-                Clear All
-              </button>
+                {!isMobile && (loading ? 'Loading...' : 'Reload Data')}
+              </Button>
+              <Button
+                icon={<GithubOutlined />}
+                href="https://github.com/WahidaAkhter/ai-agent-builder"
+                target="_blank"
+                className="github-btn"
+              />
+              {/* Mobile gear — Config */}
+              {isMobile && (
+                <Button
+                  icon={<SettingOutlined />}
+                  onClick={() => setMobileConfigOpen(true)}
+                  className="mobile-icon-btn"
+                />
+              )}
             </div>
-            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-              {savedAgents.map((agent, index) => (
-                <div key={index} style={{ padding: '1rem', background: 'white', borderRadius: '8px', border: '1px solid #b2ebf2', minWidth: '220px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                  <h3 style={{ marginTop: 0, color: '#006064' }}>{agent.name}</h3>
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
-                    <strong>Profile:</strong> {data?.agentProfiles.find(p => p.id === agent.profileId)?.name || 'None Selected'}
-                  </p>
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
-                    <strong>Skills:</strong> {agent.skillIds?.length || 0} included
-                  </p>
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
-                    <strong>Layers:</strong> {agent.layerIds?.length || 0} included
-                  </p>
-                  <p style={{ margin: '0.5rem 0', fontSize: '0.9rem' }}>
-                    <strong>Provider:</strong> {agent.provider || 'None'}
-                  </p>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                    <button
-                      onClick={() => handleLoadAgent(agent)}
-                      style={{ flex: 1, padding: '0.5rem', background: '#00838f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                      Load
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAgent(index)}
-                      style={{ padding: '0.5rem', background: '#d32f2f', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
+          </Header>
+
+          {/* ── BODY ── */}
+          <Layout style={{ background: 'transparent' }}>
+
+            {/* Left Sidebar — desktop only */}
+            {!isMobile && (
+              <Sider width={300} className="app-sider" style={{ background: 'transparent' }}>
+                {armoryContent}
+              </Sider>
+            )}
+
+            {/* Center — Canvas */}
+            <Content className="app-content">
+              <Canvas />
+              <SavedAgentsPanel />
+            </Content>
+
+            {/* Right Sidebar — desktop only */}
+            {!isMobile && (
+              <Sider width={280} className="app-sider app-sider--right" style={{ background: 'transparent' }}>
+                <AgentConfigPanel />
+              </Sider>
+            )}
+          </Layout>
+        </Layout>
+
+        {/* ── MOBILE DRAWERS ── */}
+        <Drawer
+          title={<Text style={{ color: '#e2e8f0', fontWeight: 700 }}>⚔ The Armory</Text>}
+          placement="left"
+          open={mobileArmoryOpen}
+          onClose={() => setMobileArmoryOpen(false)}
+          width={300}
+          styles={{ body: { padding: 0, background: '#0f172a' }, header: { background: '#0f172a', borderBottom: '1px solid #1e293b' } }}
+        >
+          {armoryContent}
+        </Drawer>
+
+        <Drawer
+          title={<Text style={{ color: '#e2e8f0', fontWeight: 700 }}>⚙ Agent Config</Text>}
+          placement="right"
+          open={mobileConfigOpen}
+          onClose={() => setMobileConfigOpen(false)}
+          width={300}
+          styles={{ body: { padding: 0, background: '#0f172a' }, header: { background: '#0f172a', borderBottom: '1px solid #1e293b' } }}
+        >
+          <AgentConfigPanel />
+        </Drawer>
+
+        {/* DragOverlay — ghost while dragging from sidebar */}
+        <DragOverlay>
+          {activeDragData && !activeDragData.id.startsWith('sortable') ? (
+            <div style={{ opacity: 0.92, pointerEvents: 'none' }}>
+              <DraggableItem
+                id={activeDragData.id}
+                name={activeDragData.name}
+                description={activeDragData.description}
+                badge={activeDragData.badge}
+                kind={activeDragData.kind}
+              />
             </div>
-          </section>
-        )}
-      </main>
-    </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </ConfigProvider>
   )
 }
 

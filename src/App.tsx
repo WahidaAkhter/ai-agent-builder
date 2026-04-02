@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 // Define the types based on data.json
 interface AgentProfile {
@@ -47,7 +47,12 @@ function App() {
 
   // Saving states
   const [agentName, setAgentName] = useState('')
+  const agentNameRef = useRef(agentName)
   const [savedAgents, setSavedAgents] = useState<SavedAgent[]>([])
+
+  useEffect(() => {
+    agentNameRef.current = agentName
+  }, [agentName])
   const [selectedProvider, setSelectedProvider] = useState<string>('')
 
   const handleDeleteAgent = (indexToRemove: number) => {
@@ -79,8 +84,8 @@ function App() {
 
   useEffect(() => {
     const analyticsInterval = setInterval(() => {
-      if (agentName !== '') {
-        console.log(`[Analytics Heartbeat] User is working on agent named: "${agentName}"`)
+      if (agentNameRef.current !== '') {
+        console.log(`[Analytics Heartbeat] User is working on agent named: "${agentNameRef.current}"`)
       } else {
         console.log(`[Analytics Heartbeat] User is working on an unnamed agent draft...`)
       }
@@ -119,12 +124,8 @@ function App() {
   const handleLayerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const layerId = e.target.value;
     if (layerId && !selectedLayers.includes(layerId)) {
-      selectedLayers.push(layerId)
-      setSelectedLayers(selectedLayers)
+      setSelectedLayers([...selectedLayers, layerId])
     }
-    e.target.value = ""; // Reset dropdown
-
-    fetchAPI()
   }
 
   const handleSkillSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -132,9 +133,6 @@ function App() {
     if (skillId && !selectedSkills.includes(skillId)) {
       setSelectedSkills([...selectedSkills, skillId]);
     }
-    e.target.value = ""; // Reset dropdown
-
-    fetchAPI()
   }
 
   const handleSaveAgent = () => {
@@ -206,7 +204,6 @@ function App() {
                     value={selectedProfile}
                     onChange={(e) => {
                       setSelectedProfile(e.target.value)
-                      fetchAPI()
                     }}
                     style={{ width: '100%', padding: '0.5rem' }}
                   >
@@ -222,7 +219,7 @@ function App() {
                   <select
                     id="skill-select"
                     onChange={handleSkillSelect}
-                    defaultValue=""
+                    value=""
                     style={{ width: '100%', padding: '0.5rem' }}
                   >
                     <option value="" disabled>-- Select a Skill to Add --</option>
@@ -237,7 +234,7 @@ function App() {
                   <select
                     id="layer-select"
                     onChange={handleLayerSelect}
-                    defaultValue=""
+                    value=""
                     style={{ width: '100%', padding: '0.5rem' }}
                   >
                     <option value="" disabled>-- Select a Layer to Add --</option>

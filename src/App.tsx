@@ -165,16 +165,16 @@ function App() {
       }}
     >
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={onDragEnd}>
-        <Layout style={{ minHeight: '100vh', background: '#0a0f1e' }}>
+        <Layout style={{ height: '100vh', overflow: 'hidden', background: '#0a0f1e', display: 'flex', flexDirection: 'column' }}>
 
           {/* ── HEADER ── */}
           <Header className="app-header">
             <div className="app-header-left">
-              {/* Mobile hamburger — Armory */}
+              {/* Mobile hamburger — Config */}
               {isMobile && (
                 <Button
-                  icon={<MenuOutlined />}
-                  onClick={() => setMobileArmoryOpen(true)}
+                  icon={<SettingOutlined />}
+                  onClick={() => setMobileConfigOpen(true)}
                   className="mobile-icon-btn"
                 />
               )}
@@ -213,11 +213,11 @@ function App() {
                 target="_blank"
                 className="github-btn"
               />
-              {/* Mobile gear — Config */}
+              {/* Mobile hamburger — Armory */}
               {isMobile && (
                 <Button
-                  icon={<SettingOutlined />}
-                  onClick={() => setMobileConfigOpen(true)}
+                  icon={<MenuOutlined />}
+                  onClick={() => setMobileArmoryOpen(true)}
                   className="mobile-icon-btn"
                 />
               )}
@@ -225,25 +225,29 @@ function App() {
           </Header>
 
           {/* ── BODY ── */}
-          <Layout style={{ background: 'transparent' }}>
+          <Layout style={{ background: 'transparent', overflow: 'hidden', flex: 1 }}>
 
-            {/* Left Sidebar — desktop only */}
+            {/* Left Sidebar — Agent Config — desktop only */}
             {!isMobile && (
-              <Sider width={300} className="app-sider" style={{ background: 'transparent' }}>
-                {armoryContent}
+              <Sider width={280} className="app-sider app-sider--left" style={{ background: 'transparent' }}>
+                <AgentConfigPanel />
               </Sider>
             )}
 
-            {/* Center — Canvas */}
+            {/* Center — Canvas + Saved Agents */}
             <Content className="app-content">
-              <Canvas />
-              <SavedAgentsPanel />
+              <div className="canvas-wrap">
+                <Canvas />
+              </div>
+              <div className="saved-agents-strip">
+                <SavedAgentsPanel />
+              </div>
             </Content>
 
-            {/* Right Sidebar — desktop only */}
+            {/* Right Sidebar — Armory — desktop only */}
             {!isMobile && (
-              <Sider width={280} className="app-sider app-sider--right" style={{ background: 'transparent' }}>
-                <AgentConfigPanel />
+              <Sider width={300} className="app-sider app-sider--right" style={{ background: 'transparent' }}>
+                {armoryContent}
               </Sider>
             )}
           </Layout>
@@ -251,22 +255,8 @@ function App() {
 
         {/* ── MOBILE DRAWERS ── */}
         <Drawer
-          title={<Text style={{ color: '#e2e8f0', fontWeight: 700 }}>⚔ The Armory</Text>}
-          placement="left"
-          open={mobileArmoryOpen}
-          onClose={() => setMobileArmoryOpen(false)}
-          styles={{
-            wrapper: { width: 300 },
-            body: { padding: 0, background: '#0f172a' },
-            header: { background: '#0f172a', borderBottom: '1px solid #1e293b' },
-          }}
-        >
-          {armoryContent}
-        </Drawer>
-
-        <Drawer
           title={<Text style={{ color: '#e2e8f0', fontWeight: 700 }}>⚙ Agent Config</Text>}
-          placement="right"
+          placement="left"
           open={mobileConfigOpen}
           onClose={() => setMobileConfigOpen(false)}
           styles={{
@@ -276,6 +266,20 @@ function App() {
           }}
         >
           <AgentConfigPanel />
+        </Drawer>
+
+        <Drawer
+          title={<Text style={{ color: '#e2e8f0', fontWeight: 700 }}>⚔ The Armory</Text>}
+          placement="right"
+          open={mobileArmoryOpen}
+          onClose={() => setMobileArmoryOpen(false)}
+          styles={{
+            wrapper: { width: 300 },
+            body: { padding: 0, background: '#0f172a' },
+            header: { background: '#0f172a', borderBottom: '1px solid #1e293b' },
+          }}
+        >
+          {armoryContent}
         </Drawer>
 
         {/* DragOverlay — ghost while dragging from sidebar */}

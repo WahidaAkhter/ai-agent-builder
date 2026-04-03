@@ -28,6 +28,7 @@
 
 html, body, #root {
   height: 100%;
+  overflow: hidden; /* No whole-page scroll — each panel scrolls internally */
   background: var(--bg-base);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, sans-serif;
@@ -54,6 +55,7 @@ html, body, #root {
   position: sticky;
   top: 0;
   z-index: 100;
+  flex-shrink: 0; /* Don't shrink in the flex-column root layout */
 }
 
 .app-header-left {
@@ -134,10 +136,13 @@ html, body, #root {
   .app-header-left { gap: 8px; }
   .app-header-right { gap: 8px; }
   .app-logo { width: 32px; height: 32px; font-size: 15px; }
-  .app-content { padding: 12px; gap: 12px; }
+  /* On mobile the content scrolls normally */
+  html, body, #root { overflow: auto; }
+  .app-content { overflow-y: auto !important; padding: 12px !important; gap: 12px; }
+  .canvas-wrap { padding: 0; overflow: visible; }
+  .saved-agents-strip { padding: 0 0 12px; }
   .canvas { min-height: 360px; padding: 14px; }
   .saved-panel { padding: 12px; }
-  .saved-panel-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
   .config-panel { height: auto; }
 }
 
@@ -153,28 +158,83 @@ html, body, #root {
 
 /* ── SIDERS ── */
 .app-sider {
-  border-right: 1px solid var(--border-subtle) !important;
   overflow: hidden;
 }
+.app-sider--left {
+  border-right: 1px solid var(--border-subtle) !important;
+}
 .app-sider--right {
-  border-right: none !important;
   border-left: 1px solid var(--border-subtle) !important;
 }
 
+/* Center content column */
 .app-content {
-  padding: 20px;
+  padding: 0 !important; /* panels carry their own padding */
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  overflow-y: auto;
+  overflow: hidden !important; /* no page scroll here either */
   background: var(--bg-base) !important;
 }
 
-/* ── SIDEBAR ── */
+/* Canvas grows to fill available height, scrolls if content overflows */
+.canvas-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 20px 0;
+  min-height: 0; /* allow flex shrink */
+  scrollbar-width: none;        /* Firefox — hidden until hover */
+}
+.canvas-wrap:hover {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-muted) transparent;
+}
+.canvas-wrap::-webkit-scrollbar {
+  width: 0px;   /* hidden by default */
+  transition: width 0.2s;
+}
+.canvas-wrap:hover::-webkit-scrollbar {
+  width: 5px;
+}
+.canvas-wrap:hover::-webkit-scrollbar-thumb {
+  background: var(--border-muted);
+  border-radius: 99px;
+}
+.canvas-wrap:hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Saved Agents — horizontal-only strip at the bottom */
+.saved-agents-strip {
+  flex-shrink: 0;
+  padding: 0 20px 16px;
+  overflow-x: auto;    /* shows scrollbar only when content overflows */
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox — hidden by default */
+}
+.saved-agents-strip:hover {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-muted) transparent;
+}
+.saved-agents-strip::-webkit-scrollbar {
+  height: 0px; /* hidden by default */
+}
+.saved-agents-strip:hover::-webkit-scrollbar {
+  height: 5px;
+}
+.saved-agents-strip:hover::-webkit-scrollbar-thumb {
+  background: var(--border-muted);
+  border-radius: 99px;
+}
+.saved-agents-strip:hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── SIDEBAR (Armory — right panel) ── */
 .sidebar {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 60px);
+  height: 100%; /* fills the sider which is already 100vh-header */
   background: linear-gradient(180deg, #111827 0%, #0f172a 50%, #0c1320 100%);
 }
 
@@ -212,70 +272,94 @@ html, body, #root {
 .sidebar-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 12px 12px 20px;
 }
 
-.sidebar-collapse .ant-collapse-item {
-  border: none !important;
-}
-.sidebar-collapse .ant-collapse-header {
-  padding: 10px 16px !important;
-  color: var(--text-secondary) !important;
-}
-.sidebar-collapse .ant-collapse-content-box {
-  padding: 4px 12px 12px !important;
+
+/* ── ARMORY CARD (NotebookLM-style 2-col grid) ── */
+.armory-section {
+  margin-bottom: 20px;
 }
 
-/* ── DRAGGABLE ITEM ── */
-.draggable-item {
+.armory-section-header {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--bg-raised);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-  user-select: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 10px;
 }
-.draggable-item:hover {
-  border-color: var(--accent-indigo);
-  box-shadow: var(--glow-indigo), 0 4px 16px rgba(99, 102, 241, 0.15);
-  background: #1a2240;
+
+/* 2-column grid */
+.armory-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.armory-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 10px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: grab;
+  user-select: none;
+  transition: filter 0.18s, box-shadow 0.18s, transform 0.18s;
+  min-height: 72px;
+  position: relative;
+}
+.armory-card:hover {
+  filter: brightness(1.18);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
   transform: translateY(-2px);
 }
-.draggable-item:active {
-  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.35);
+.armory-card:active {
+  cursor: grabbing;
   transform: translateY(0);
 }
 
-.draggable-item-icon {
-  font-size: 18px;
-  color: var(--accent-indigo);
-  margin-top: 1px;
-  flex-shrink: 0;
-  width: 20px;
-  text-align: center;
-}
-
-.draggable-item-content {
+.armory-card-top {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
 }
 
-.draggable-item-name {
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  color: var(--text-primary) !important;
+.armory-card-icon {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.armory-card-beta {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.armory-card-chevron {
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.armory-card:hover .armory-card-chevron {
+  color: rgba(255,255,255,0.6);
+}
+
+.armory-card-name {
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.3;
-}
-
-.draggable-item-desc {
-  font-size: 11px !important;
-  color: var(--text-muted) !important;
-  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -533,11 +617,11 @@ html, body, #root {
   background: rgba(239, 68, 68, 0.1) !important;
 }
 
-/* ── CONFIG PANEL ── */
+/* ── CONFIG PANEL (left panel) ── */
 .config-panel {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 60px);
+  height: 100%; /* fills the sider */
   background: var(--bg-surface);
 }
 
@@ -646,31 +730,58 @@ html, body, #root {
   background: rgba(255,255,255,0.03);
 }
 
-/* ── SAVED AGENTS PANEL ── */
+/* ── SAVED AGENTS PANEL — horizontal strip ── */
 .saved-panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: 12px 16px;
+  /* min-width ensures the panel never collapses */
+  min-width: 0;
 }
 
 .saved-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .saved-panel-title {
   font-size: 14px !important;
   font-weight: 700 !important;
   color: var(--text-primary) !important;
+  white-space: nowrap;
 }
 
+/* Horizontal row — cards never wrap, scroll instead */
+/* Scrollbar hidden until hover, only appears when content actually overflows */
 .saved-panel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  display: flex;
+  flex-direction: row;
   gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scrollbar-width: none; /* Firefox */
+}
+.saved-panel-grid:hover {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-muted) transparent;
+}
+.saved-panel-grid::-webkit-scrollbar {
+  height: 0px;
+}
+.saved-panel-grid:hover::-webkit-scrollbar {
+  height: 4px;
+}
+.saved-panel-grid:hover::-webkit-scrollbar-thumb {
+  background: var(--border-muted);
+  border-radius: 99px;
+}
+.saved-panel-grid:hover::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* ── AGENT CARD ── */
@@ -685,6 +796,9 @@ html, body, #root {
   gap: 0;
   transition: border-color 0.2s, box-shadow 0.2s;
   min-height: 130px;
+  /* Fixed width so the horizontal scroll row looks neat */
+  width: 210px;
+  flex-shrink: 0;
 }
 .agent-card:hover {
   border-color: var(--border-muted);

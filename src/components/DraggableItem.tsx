@@ -1,6 +1,6 @@
 import React, { memo } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { Tag, Typography } from 'antd'
+import { RightOutlined } from '@ant-design/icons'
 import {
   SearchOutlined, CodeOutlined, DatabaseOutlined, MailOutlined,
   CalendarOutlined, FilePdfOutlined, PictureOutlined, BarChartOutlined,
@@ -10,8 +10,6 @@ import {
   StarOutlined, FontColorsOutlined,
 } from '@ant-design/icons'
 
-const { Text } = Typography
-
 export type DraggableKind = 'skill' | 'layer'
 
 interface DraggableItemProps {
@@ -20,57 +18,52 @@ interface DraggableItemProps {
   description: string
   badge: string
   kind: DraggableKind
+  searchQuery?: string
 }
 
 export const skillIconMap: Record<string, React.ReactNode> = {
-  sk_search: <SearchOutlined />,
-  sk_code: <CodeOutlined />,
-  sk_db: <DatabaseOutlined />,
-  sk_email: <MailOutlined />,
-  sk_calendar: <CalendarOutlined />,
-  sk_pdf_parse: <FilePdfOutlined />,
-  sk_image_gen: <PictureOutlined />,
-  sk_data_analysis: <BarChartOutlined />,
-  sk_translate: <TranslationOutlined />,
-  sk_web_scrape: <GlobalOutlined />,
-  sk_git: <BranchesOutlined />,
-  sk_social: <ShareAltOutlined />,
-  ly_cot: <BulbOutlined />,
-  ly_reflexion: <SyncOutlined />,
-  ly_sarcasm: <CrownOutlined />,
-  ly_pirate: <SmileOutlined />,
-  ly_memory: <HistoryOutlined />,
-  ly_empathetic: <HeartOutlined />,
+  sk_search:       <SearchOutlined />,
+  sk_code:         <CodeOutlined />,
+  sk_db:           <DatabaseOutlined />,
+  sk_email:        <MailOutlined />,
+  sk_calendar:     <CalendarOutlined />,
+  sk_pdf_parse:    <FilePdfOutlined />,
+  sk_image_gen:    <PictureOutlined />,
+  sk_data_analysis:<BarChartOutlined />,
+  sk_translate:    <TranslationOutlined />,
+  sk_web_scrape:   <GlobalOutlined />,
+  sk_git:          <BranchesOutlined />,
+  sk_social:       <ShareAltOutlined />,
+  ly_cot:          <BulbOutlined />,
+  ly_reflexion:    <SyncOutlined />,
+  ly_sarcasm:      <CrownOutlined />,
+  ly_pirate:       <SmileOutlined />,
+  ly_memory:       <HistoryOutlined />,
+  ly_empathetic:   <HeartOutlined />,
   ly_fact_checker: <SafetyOutlined />,
-  ly_concise: <CompressOutlined />,
-  ly_multi_agent: <TeamOutlined />,
-  ly_code_optimizer: <ThunderboltOutlined />,
-  ly_shakespeare: <StarOutlined />,
-  ly_markdown: <FontColorsOutlined />,
+  ly_concise:      <CompressOutlined />,
+  ly_multi_agent:  <TeamOutlined />,
+  ly_code_optimizer:<ThunderboltOutlined />,
+  ly_shakespeare:  <StarOutlined />,
+  ly_markdown:     <FontColorsOutlined />,
 }
 
-const categoryColorMap: Record<string, string> = {
-  information: '#3b82f6',
-  action: '#8b5cf6',
-  reasoning: '#06b6d4',
-  personality: '#f59e0b',
-  context: '#10b981',
-  formatting: '#f43f5e',
+// Tinted card background + icon color per category — mirrors NotebookLM palette
+const categoryStyle: Record<string, { bg: string; iconColor: string; border: string }> = {
+  information: { bg: 'rgba(59,130,246,0.12)', iconColor: '#60a5fa', border: 'rgba(59,130,246,0.25)' },
+  action:      { bg: 'rgba(139,92,246,0.12)', iconColor: '#a78bfa', border: 'rgba(139,92,246,0.25)' },
+  reasoning:   { bg: 'rgba(6,182,212,0.12)',  iconColor: '#22d3ee', border: 'rgba(6,182,212,0.25)'  },
+  personality: { bg: 'rgba(245,158,11,0.12)', iconColor: '#fbbf24', border: 'rgba(245,158,11,0.25)' },
+  context:     { bg: 'rgba(16,185,129,0.12)', iconColor: '#34d399', border: 'rgba(16,185,129,0.25)' },
+  formatting:  { bg: 'rgba(244,63,94,0.12)',  iconColor: '#fb7185', border: 'rgba(244,63,94,0.25)'  },
 }
+
+// Which items get a BETA badge
+const BETA_IDS = new Set(['ly_multi_agent', 'ly_code_optimizer', 'sk_image_gen'])
 
 export type { DraggableItemProps }
 
-function highlight(text: string, query: string) {
-  if (!query.trim()) return <>{text}</>
-  const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'))
-  return <>{parts.map((part, i) =>
-    part.toLowerCase() === query.toLowerCase()
-      ? <mark key={i} className="search-highlight">{part}</mark>
-      : part
-  )}</>
-}
-
-const DraggableItem = memo(({ id, name, description, badge, kind, searchQuery = '' }: DraggableItemProps & { searchQuery?: string }) => {
+const DraggableItem = memo(({ id, name, description, badge, kind, searchQuery = '' }: DraggableItemProps) => {
   const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
     id,
     data: { id, name, description, badge, kind },
@@ -78,42 +71,58 @@ const DraggableItem = memo(({ id, name, description, badge, kind, searchQuery = 
 
   const style: React.CSSProperties = {
     transform: transform
-      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(1.08) rotate(2.5deg)`
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0) scale(1.06) rotate(1.5deg)`
       : undefined,
     opacity: isDragging ? 0.5 : 1,
     cursor: isDragging ? 'grabbing' : 'grab',
-    transition: isDragging ? 'none' : 'transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease',
+    transition: isDragging ? 'none' : 'transform 0.18s ease, opacity 0.18s ease',
     zIndex: isDragging ? 999 : 'auto',
     position: isDragging ? 'relative' : undefined,
+  }
+
+  const cat = categoryStyle[badge] ?? { bg: 'rgba(255,255,255,0.06)', iconColor: '#94a3b8', border: 'rgba(255,255,255,0.12)' }
+  const isBeta = BETA_IDS.has(id)
+  const icon = skillIconMap[id]
+
+  // Highlight search matches in name
+  function highlight(text: string) {
+    if (!searchQuery.trim()) return <>{text}</>
+    const parts = text.split(new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'))
+    return <>{parts.map((part, i) =>
+      part.toLowerCase() === searchQuery.toLowerCase()
+        ? <mark key={i} className="search-highlight">{part}</mark>
+        : part
+    )}</>
+  }
+
+  const mergedStyle: React.CSSProperties = {
+    ...style,
+    background: cat.bg,
+    borderColor: cat.border,
   }
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={mergedStyle}
       {...listeners}
       {...attributes}
-      className="draggable-item"
+      className="armory-card"
+      title={description}
     >
-      <div className="draggable-item-icon">
-        {skillIconMap[id]}
+      {/* Icon row */}
+      <div className="armory-card-top">
+        <span className="armory-card-icon" style={{ color: cat.iconColor }}>
+          {icon}
+        </span>
+        {isBeta && <span className="armory-card-beta">BETA</span>}
+        <RightOutlined className="armory-card-chevron" />
       </div>
-      <div className="draggable-item-content">
-        <Text className="draggable-item-name">{highlight(name, searchQuery)}</Text>
-        <Text className="draggable-item-desc">{highlight(description, searchQuery)}</Text>
-        <Tag
-          style={{
-            marginTop: 4,
-            fontSize: 10,
-            borderRadius: 4,
-            background: `${categoryColorMap[badge] || '#555'}22`,
-            border: `1px solid ${categoryColorMap[badge] || '#555'}66`,
-            color: categoryColorMap[badge] || '#aaa',
-          }}
-        >
-          {badge}
-        </Tag>
-      </div>
+
+      {/* Name */}
+      <span className="armory-card-name" style={{ color: cat.iconColor }}>
+        {highlight(name)}
+      </span>
     </div>
   )
 })

@@ -30,6 +30,17 @@ function AgentCard({ agent, onLoad, onDelete }: { agent: SavedAgent, onLoad: () 
         transition={{ type: 'spring', stiffness: 300, damping: 26 }}
         className={`agent-card ${isWahida ? 'agent-card--wahida' : ''}`}
       >
+        {/* Wahida avatar portrait */}
+        {isWahida && (
+          <div className="agent-card-avatar-wrap">
+            <img
+              src="/wahida_avatar.png"
+              alt="Wahida avatar"
+              className="agent-card-avatar"
+            />
+          </div>
+        )}
+
         {isWahida && (
           <div className="agent-card-wahida-badge">
             <StarFilled style={{ color: '#f59e0b', fontSize: 10 }} /> Creator
@@ -138,14 +149,14 @@ function SavedAgentsPanel() {
               onDelete={() => {}}
             />
           )}
-          {userAgents.length === 0 && (
+          {savedAgents.length === 0 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               style={{ gridColumn: '1 / -1' }}
             >
               <Empty
-                description={<Text style={{ color: '#475569', fontSize: 13 }}>No saved agents yet. Build one and save it!</Text>}
+                description={<Text style={{ color: '#71717a', fontSize: 13 }}>No saved agents yet. Build one and save it!</Text>}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             </motion.div>

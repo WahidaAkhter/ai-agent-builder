@@ -2,25 +2,27 @@
 
 /* ── DESIGN TOKENS ── */
 :root {
-  --bg-base: #0a0f1e;
-  --bg-surface: #0f172a;
-  --bg-raised: #1e293b;
-  --bg-overlay: #162032;
-  --accent-indigo: #6366f1;
+  /* Professional Zinc/SaaS Palette */
+  --bg-base: #09090b;
+  --bg-surface: #18181b;
+  --bg-raised: #27272a;
+  --bg-overlay: #18181b;
+  --accent-primary: #ffffff; /* White primary for sharp contrast */
+  --accent-primary-hover: #e4e4e7;
+  --accent-indigo: #3b82f6; /* Used for specific accents */
   --accent-purple: #8b5cf6;
   --accent-cyan: #06b6d4;
   --accent-amber: #f59e0b;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted: #475569;
-  --border-subtle: #1e293b;
-  --border-muted: #334155;
-  --glow-indigo: 0 0 20px rgba(99, 102, 241, 0.25);
-  --glow-purple: 0 0 20px rgba(139, 92, 246, 0.25);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --border-subtle: #27272a;
+  --border-muted: #3f3f46;
+  --glow-indigo: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
 /* ── RESET & BASE ── */
@@ -46,8 +48,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(10, 15, 30, 0.92) !important;
-  backdrop-filter: blur(12px);
+  background: var(--bg-surface) !important;
   border-bottom: 1px solid var(--border-subtle);
   padding: 0 24px !important;
   height: 60px !important;
@@ -55,7 +56,7 @@ html, body, #root {
   position: sticky;
   top: 0;
   z-index: 100;
-  flex-shrink: 0; /* Don't shrink in the flex-column root layout */
+  flex-shrink: 0;
 }
 
 .app-header-left {
@@ -65,16 +66,15 @@ html, body, #root {
 }
 
 .app-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple));
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  color: #fff;
-  box-shadow: var(--glow-indigo);
+  font-size: 16px;
+  color: #000; /* Contrast black */
   flex-shrink: 0;
 }
 
@@ -172,6 +172,7 @@ html, body, #root {
   padding: 0 !important; /* panels carry their own padding */
   display: flex;
   flex-direction: column;
+  gap: 16px;
   overflow: hidden !important; /* no page scroll here either */
   background: var(--bg-base) !important;
 }
@@ -179,11 +180,11 @@ html, body, #root {
 /* Canvas grows to fill available height, scrolls if content overflows */
 .canvas-wrap {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Canvas itself handles internal scroll now */
   padding: 20px 20px 0;
   min-height: 0; /* allow flex shrink */
-  scrollbar-width: none;        /* Firefox — hidden until hover */
 }
 .canvas-wrap:hover {
   scrollbar-width: thin;
@@ -235,7 +236,7 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   height: 100%; /* fills the sider which is already 100vh-header */
-  background: linear-gradient(180deg, #111827 0%, #0f172a 50%, #0c1320 100%);
+  background: var(--bg-surface);
 }
 
 .sidebar-header {
@@ -370,9 +371,9 @@ html, body, #root {
 /* ── CANVAS ── */
 .canvas {
   flex: 1;
-  min-height: 420px;
+  min-height: 0;
   background: var(--bg-surface);
-  border: 1.5px solid var(--border-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 20px;
   position: relative;
@@ -380,6 +381,27 @@ html, body, #root {
   flex-direction: column;
   gap: 16px;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none; /* Firefox — hidden until hover */
+}
+.canvas:hover {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-muted) transparent;
+}
+.canvas::-webkit-scrollbar {
+  width: 0px;   /* hidden by default */
+  transition: width 0.2s;
+}
+.canvas:hover::-webkit-scrollbar {
+  width: 5px;
+}
+.canvas:hover::-webkit-scrollbar-thumb {
+  background: var(--border-muted);
+  border-radius: 99px;
+}
+.canvas:hover::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .canvas--grid {
@@ -446,6 +468,7 @@ html, body, #root {
 
 .canvas-empty {
   flex: 1;
+  min-height: 0; /* allow shrinking */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -682,33 +705,18 @@ html, body, #root {
 }
 
 .config-save-btn {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple)) !important;
+  background: var(--accent-primary) !important;
+  color: #000 !important;
   border: none !important;
   font-weight: 600 !important;
-  box-shadow: var(--glow-indigo) !important;
-  transition: opacity 0.2s, box-shadow 0.2s !important;
-}
-.config-save-btn::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
-  animation: btn-shimmer 3s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes btn-shimmer {
-  0%   { left: -80%; }
-  50%  { left: 120%; }
-  100% { left: 120%; }
+  height: 38px !important;
+  transition: background 0.2s, transform 0.1s !important;
 }
 .config-save-btn:hover {
-  opacity: 0.9 !important;
-  box-shadow: 0 0 28px rgba(99, 102, 241, 0.4) !important;
+  background: var(--accent-primary-hover) !important;
+}
+.config-save-btn:active {
+  transform: scale(0.98) !important;
 }
 
 .config-reset-btn {
@@ -800,25 +808,50 @@ html, body, #root {
   width: 210px;
   flex-shrink: 0;
 }
+
+/* Wahida card is wider + taller to accommodate the avatar */
+.agent-card--wahida {
+  width: 220px;
+  min-height: 220px;
+  align-items: center;
+  border-color: var(--border-muted) !important;
+  background: var(--bg-surface) !important;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
+}
 .agent-card:hover {
   border-color: var(--border-muted);
   box-shadow: var(--shadow-card);
 }
 
-.agent-card--wahida {
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  background: linear-gradient(135deg, #0f172a, #12183a) !important;
-  box-shadow: var(--glow-indigo) !important;
-}
 .agent-card--wahida:hover {
-  box-shadow: 0 0 32px rgba(99, 102, 241, 0.35) !important;
+  border-color: var(--text-secondary) !important;
+}
+
+/* ── AVATAR (Wahida card) ── */
+.agent-card-avatar-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+  margin-top: 4px;
+}
+
+.agent-card-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 1px solid var(--border-muted);
+  transition: transform 0.25s ease;
+}
+.agent-card--wahida:hover .agent-card-avatar {
+  transform: scale(1.04);
 }
 
 .agent-card-wahida-badge {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
+  /* sits below the avatar, centred in the card flow (not absolute) */
+  display: inline-flex;
+  align-self: center;
   align-items: center;
   gap: 4px;
   font-size: 10px;
@@ -826,8 +859,9 @@ html, body, #root {
   font-weight: 600;
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.3);
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 99px;
+  margin-bottom: 8px;
 }
 
 .agent-card-name {
@@ -835,7 +869,7 @@ html, body, #root {
   font-size: 13px !important;
   font-weight: 700 !important;
   color: var(--text-primary) !important;
-  margin-right: 48px;
+  text-align: center;
 }
 
 .agent-card-load-btn {
@@ -850,16 +884,15 @@ html, body, #root {
 }
 
 .agent-card-view-btn {
-  background: linear-gradient(90deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2)) !important;
-  border-color: rgba(99, 102, 241, 0.5) !important;
-  color: #a5b4fc !important;
+  background: var(--bg-raised) !important;
+  border-color: var(--border-muted) !important;
+  color: var(--text-primary) !important;
   font-size: 12px !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
 }
 .agent-card-view-btn:hover {
-  background: linear-gradient(90deg, rgba(99,102,241,0.35), rgba(139,92,246,0.35)) !important;
-  border-color: var(--accent-indigo) !important;
-  box-shadow: var(--glow-indigo) !important;
+  background: var(--border-subtle) !important;
+  border-color: var(--text-secondary) !important;
 }
 
 /* ── SIDER LOADING ── */
@@ -879,7 +912,7 @@ html, body, #root {
   align-items: center;
   gap: 4px;
   padding: 36px 24px 28px;
-  background: linear-gradient(180deg, #12183a 0%, #0a0f1e 100%);
+  background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   text-align: center;
 }
